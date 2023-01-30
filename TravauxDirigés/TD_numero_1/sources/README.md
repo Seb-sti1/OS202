@@ -113,7 +113,7 @@ dans la suite de la boucle. Si ce n'est pas le cas, on va devoir recharger le ca
 | 512            | 3820.16        | 3685.72        | 4481.6        | 3768.58        |
 | 1024           | 4378.03        | 4275.69        | 4618.72       | 4087.35        |
 
-TODO 1.6
+Les Mflops sont équivalents avec le cas matrice-matrice scalaire. Je ne sais pas vraiment quoi conclure sur cette partie.
 
 ### Bloc + OMP
 
@@ -128,7 +128,8 @@ TODO 1.6
 On peut remarquer que la version scalaire parallélisée est meilleure pour les matrices proches de la taille des blocks. A contrario,
 pour de grosses matrices la version par blocs parallélisée est meilleure.
 
-TODO 1.7
+Tout comme dans l'exercice 1 on tire partie de la manière dont les données sont chargées en mémoire. Deplus je pense qu'ici, le principe
+de mémoire associative permet aussi accélerrer l'execution du processus.
 
 ### Comparaison with BLAS
 
@@ -143,9 +144,9 @@ Resultats obtenus
 
 | MFlops(n=1024) | MFlops(n=2048) | MFlops(n=512) |
 | -------------- | -------------- | ------------- |
-| 5079.65        | 3301.85        | 5092.96       |
+| 56572          | 69954.3        | 67066.3       |
 
-J'ai l'impression que le produit par block de 512 parallélisé est meilleur.
+Blas est meilleur.
 
 ```
     $ for i in $(seq 1 4); do elap=$(OMP_NUM_THREADS=$i ./TestProductOmp.exe|grep "Temps CPU"|cut -d " " -f 7); echo -e "$i\t$elap"; done > timers.out
