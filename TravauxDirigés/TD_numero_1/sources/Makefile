@@ -4,10 +4,10 @@ include Make_linux.inc
 
 CXXFLAGS = -std=c++14
 ifdef DEBUG
-CXXFLAGS += -g -O0 -Wall -fbounds-check -pedantic -D_GLIBCXX_DEBUG
+CXXFLAGS += -g -O0 -Wall -fbounds-check -pedantic -D_GLIBCXX_DEBUG -frecord-gcc-switches
 CXXFLAGS2 = CXXFLAGS
 else
-CXXFLAGS2 = ${CXXFLAGS} -O2 -march=native -Wall
+CXXFLAGS2 = ${CXXFLAGS} -O2 -march=native -Wall -frecord-gcc-switches
 CXXFLAGS += -O3 -march=native -Wall
 endif
 
@@ -36,3 +36,6 @@ help:
 	@echo "Configuration :"
 	@echo "    CXX      :    $(CXX)"
 	@echo "    CXXFLAGS :    $(CXXFLAGS)"
+
+%.html: %.md
+	pandoc -s --toc $< --css=./github-pandoc.css --metadata pagetitle="OS202 - TD1" -o $@

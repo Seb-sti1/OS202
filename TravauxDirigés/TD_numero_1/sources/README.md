@@ -1,4 +1,4 @@
-# TP2 de Kerbourc'h Sébastien
+# TP1 de Kerbourc'h Sébastien
 
 `pandoc -s --toc tp2.md --css=./github-pandoc.css -o tp1.html`
 
@@ -131,7 +131,7 @@ pour de grosses matrices la version par blocs parallélisée est meilleure.
 Tout comme dans l'exercice 1 on tire partie de la manière dont les données sont chargées en mémoire. Deplus je pense qu'ici, le principe
 de mémoire associative permet aussi accélerrer l'execution du processus.
 
-### Comparaison with BLAS
+### Comparaison with BLAS
 
 # Tips
 
