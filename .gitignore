@@ -8,3 +8,4 @@ _minted-*
 *.toc
 *.vrb
 *.exe
+Transparents/examples/MPI/.scattering.cpp.swp

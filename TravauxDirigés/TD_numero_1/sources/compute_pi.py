@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 # Nombre d'échantillons :
-nbSamples = 40000000
+nbSamples = 400000000
 
 beg = time.time()
 # Tirage des points (x,y) tirés dans un carré [-1;1] x [-1; 1]
