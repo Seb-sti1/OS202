@@ -465,17 +465,469 @@
     Let's an image with resolution $W\times H$ pixels.\\
     Let's $N = W \times H$ the number of pixels contained in the image. So, per iteration of conjugate gradient :
     \begin{itemize}
-    \item About $5\frac{N}{nbp}$ additions and multiplications;
-    \item About % A FAIRE : Calculer sur papier le nombre de cellules échangées par itération.
+    \item About $5\frac{N}{nbp}$ additions and multiplications
+    \item About $\displaystyle \frac{2}{\sqrt{\mbox{nbp}}}\left(W + H\right)$ data to send and receive when using alternating
+          direction splitting, or $2\min\left(W,H\right)$ data to send and receive when using one direction splitting.
+    \item For adaptative direction splitting, one has less than the best of formulae above.
     \end{itemize}
   \end{block}
 \end{frame}
 
+\begin{frame}{Schwarz's Domain Decomposition Method}
+  \scriptsize
+  \begin{block}{\small Presentation of the method}
+    \begin{itemize}
+      \item Introduce by Schwarz (1869) to prove existence \& uniqueness of Poisson problem, devising domain
+            in simpler geometry
+      \item With the advent of digital computers, this method acquired a pratical interest as in iterative solver
+      \item Parallel computers make it suited to this architecture.
+    \end{itemize}
+  \end{block}
+
+  \begin{exampleblock}{The algorithm on two subdomains}
+    Let's $\Omega$ a domain in $\mathbb{R}^{n}$ and $\Omega_{1},\Omega_{2}$ two subdomains as $\Omega_{i}\subset \Omega$,
+    $\Omega_{1}\cup \Omega_{2} = \Omega$ and $\Omega_{1}\cap \Omega_{2} \neq \emptyset$. The Schwarz method to solve the
+    Poisson problem on $\Omega$ is an iterative method :
+    \begin{itemize}
+      \item Start with initial solutions $u^{(0)}_{1},u^{(0)}_{2}$ on respectively $\Omega_{1}, \Omega_{2}$;
+      \item To compute $u^{(n+1)}_{1}, u^{(n+1)}_{2}$ from $u^{(n)}_{1}, u^{(n)}_{2}$, solve :
+      \vspace*{-5mm}
+      \begin{multicols}{2}
+        \[
+          \left\{
+            \begin{array}{lcl}
+              -\Delta u_{1}^{(n+1)} & = & f \mbox{ in }\Omega_{1}\\
+              u_{1}^{(n+1)} & = & 0 \mbox{ on } \partial\Omega_{1} \cap \partial \Omega \\
+              u_{1}^{(n+1)} & = & u_{2}^{(n)} \mbox{ on } \partial\Omega_{1} \cap  \overline{\Omega_{2}}
+            \end{array}
+          \right.
+        \]
+
+        \[
+          \left\{
+            \begin{array}{lcl}
+              -\Delta u_{2}^{(n+1)} & = & f \mbox{ in }\Omega_{2}\\
+              u_{2}^{(n+1)} & = & 0 \mbox{ on } \partial\Omega_{2} \cap \partial\Omega \\
+              u_{2}^{(n+1)} & = & u_{1}^{(n)} \mbox{ on } \partial\Omega_{2} \cap \overline{\Omega_{1}}
+            \end{array}
+          \right.
+        \]
+      \end{multicols}
+    \end{itemize}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Pratical implementation}
+  \scriptsize
+  \begin{multicols}{2}
+  \begin{block}{\small Tips}
+    \begin{itemize}
+      \item Using ghostcells to update fixed values on\\ $\partial\Omega_{i} \cap \Omega_{3-i}, i\in\{1,2\}$
+      \item Solve local values with direct or iterative method\\ (GC by example)
+      \item Direct solve is faster. Factorize local matrix before\\ Schwarz iterative method;
+      \item Stop criterion : stop Schwarz iterations when \\
+      $\displaystyle\max_{i=1,2}\left(\|u_{i}^{(n+1)} - u_{i}^{(n)}\|\right) < \varepsilon$
+      \item Using more subdomain is straightforward !
+      \item But more subdomains is used, slower is the convergence.
+      \item Some methods exist to speed-up the convergence of the\\ method (coupling with multigrid method by example)
+    \end{itemize}
+  \end{block}
+
+  \begin{exampleblock}{\small Pratical algorithm}
+    \begin{algorithm}[H]
+      Choose $u_{i}$\;
+      $u_{i}^{(old)} \leftarrow 0$\;
+      \While{reduce($\|u_{i} - u_{i}^{(old)}\|,\mbox{max}) < \varepsilon$} {
+          $u_{i}^{(old)} \leftarrow u_{i}$\;
+          update ghost cells for $u_{i}$\;
+          Solve($u_{i}, f$) using ghostcells as boundary conditions\;
+      }
+    \end{algorithm}
+  \end{exampleblock}
+\end{multicols}
+\end{frame}
+
+\begin{frame}[fragile]{Properties of Schwarz's algorithm}
+\scriptsize
+\begin{block}{\small Properties}
+  \begin{itemize}
+    \item Some mathematical theorems show than the algorithm converges
+    \item Greater is the overlapping between domains, faster is the convergence of the algorithm
+    \item But solving local problems is slower
+    \item And most memory is consumed
+  \end{itemize}
+\end{block}  
+
+\begin{exampleblock}{\small Complexity analysis}
+  \begin{itemize}
+    \item For each iteration, computing complexity is the complexity to solve the linear system issued from Laplacian operator;
+    \item Beware, Gradient Conjugate algorithm will be purely local if used;
+    \item For communication, for each iteration of Schwarz's algorithm, updating ghostcells needs communication as :
+    $\displaystyle \frac{2}{\sqrt{\mbox{nbp}}}\left(W + H\right)$ data to send and receive when using alternating
+    direction splitting, or $2\min\left(W,H\right)$ data to send and receive when using one direction splitting.
+  \item For adaptative direction splitting, one has less than the best of formulae above.
+  \end{itemize}
+\end{exampleblock}
+\end{frame}
 
 \section{Non overlapping domain decomposition methods}
 
+\begin{frame}[fragile]{Non overlapping methods}
+  \scriptsize
+  \begin{block}{\small Non ovelapping domain decomposition}
+    \begin{itemize}
+      \item $\left\{\Omega_{i}\right\}_{i=1,\cdots,n}$ is a non overlapping decomposition method of $\Omega$ if :
+      \begin{itemize}
+        \item {\scriptsize $\Omega_{i} \bigcap \Omega_{j} = \emptyset$ where $i\neq j$}
+        \item {\scriptsize $\displaystyle \bigcup_{i=1,\cdots,n}\overline{\Omega_{i}} = \overline{\Omega}$}
+        \item {\scriptsize $\overline{\Omega_{i}} \bigcap \overline{\Omega_{j}} \neq \emptyset$}
+      \end{itemize}
+      \item Example : $\Omega = ]0;1[ \Rightarrow \Omega_{1} = ]0;\frac{1}{2}[ \mbox{ and } \Omega_{2} = ]\frac{1}{2};1[$
+    \end{itemize}
+  \end{block}
+
+  \begin{exampleblock}{\small Non overlapping methods for image}
+    \begin{itemize}
+      \item In fact, to split an image in two sub-images, we must share a common interface, i.e a simple row (or column) of pixels
+      \item This common interface can be a third sub-images or the boundary condition of both sub-images.
+    \end{itemize}
+  \end{exampleblock}
+\end{frame}
+
 \subsection{Explicit methods}
+
+\begin{frame}{Primal schur factorization}
+  \scriptsize
+  \begin{block}{Principle with two sub-domains and an interface}
+    \begin{multicols}{2}
+    \begin{figure}[h]
+      \begin{tikzpicture}
+        \draw[fill=yellow,draw] (-2,-2) -- (-0.5,-2) -- (-0.5, 1) -- (-2,1) -- cycle;
+        \draw[fill=yellow,draw] (-2,-2) grid[xstep=0.1,ystep=0.1] (-0.5, 1);
+        \node at (-1.25, -0.5) {\textcolor{red}{\Huge $\Omega_{1}$}};
+
+        \draw[fill=yellow,draw] (0,-2) --  (0,1);
+        \draw[draw] (-0.05,-2.001) grid[xstep=0.1,ystep=0.1] (0.05, 1.001);
+        \node at (0, -0.5) {\textcolor{blue}{\Large$\Gamma_{3}$}};
+
+        \draw[fill=cyan,draw] (0.5,-2) -- (2,-2) -- (2, 1) -- (0.5,1) -- cycle;
+        \draw[fill=cyan,draw] (0.5,-2) grid[xstep=0.1,ystep=0.1] (2, 1);
+        \node at (+1.25, -0.5) {\textcolor{darkorange}{\Huge $\Omega_{2}$}};
+
+      \end{tikzpicture}
+    \end{figure}
+
+    \begin{itemize}
+      \item This subdivision of the domain is a bissection;
+      \item Care the interface as a third sub-domain;
+      \item Thanks to the finite difference laplacian scheme,\\
+      the interaction between $\Omega_{1}$ and $\Omega_{2}$ is null;
+      \item Numbering $\Omega_{1}$ nodes at first, then nodes contained in
+      $\Omega_{2}$ and finally the nodes in $\Gamma_{3}$ gives the following matrix :\\
+      $A = \left(\begin{array}{ccc}
+          A_{11} & 0 & A_{13} \\
+            0    & A_{22} & A_{23} \\
+            A_{31} & A_{32} & A_{33}
+      \end{array}\right)$
+      \item Ce type de matrice est nommée \textsl{matrice flèche} (par bloc)
+    \end{itemize}
+  \end{multicols}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Résolution d'une matrice flèche par bloc}
+  \scriptsize
+  \begin{block}{\small Block factorization}
+    if $A_{11}$ and $A_{22}$ are inversibles, then :
+    \[
+      A = \left(\begin{array}{ccc}
+        A_{11} & 0 & A_{13} \\
+          0    & A_{22} & A_{23} \\
+          A_{31} & A_{32} & A_{33}
+    \end{array}\right)
+    = 
+    \left(\begin{array}{ccc}
+      A_{11} & 0 & 0 \\
+        0    & A_{22} & 0 \\
+        A_{31} & A_{32} & S_{33}
+  \end{array}\right)
+  \left(\begin{array}{ccc}
+    I & 0 & A_{11}^{-1}A_{13} \\
+      0    & I & A_{22}^{-1}A_{23} \\
+      0 & 0 & I
+\end{array}\right)    
+    \]
+    where $S_{33} = A_{33} - A_{31}A_{11}^{-1}A_{13} - A_{32}A_{22}^{-1}A_{23}$
+  \end{block}
+
+  \begin{block}{\small Solving linear system $A.x=b$ from block factorization}
+    \begin{itemize}
+      \item Solve $A_{11}.y_{1} = b_{1}$ and $A_{22}.y_{2} = b_{2}$
+      \item Solve $S_{33}.x_{3} = b_{3} - A_{31}.y_{1} -A_{32}.y_{2}$
+      \item Compute $x_{1} = y_{1} - A_{11}^{-1}.A_{13}.x_{3}$ and $x_{2} = y_{2} - A_{22}^{-1}.A_{23}.x_{3}$.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Parallel algorithm}
+
+  For two processes :
+  \scriptsize
+
+  \begin{multicols}{2}
+   \begin{exampleblock}{\small Inplace parallel factorization}
+    For the processus with rank=$i$ :
+    \begin{itemize}
+      \item Factorize $A_{ii} \leftarrow L_{ii}.U_{ii}$
+      \item Compute $A_{i3} \leftarrow A_{ii}^{-1}A_{i3}$
+      \item Compute $A_{33}^{(i)} \leftarrow \frac{1}{2}A_{33} - A_{3i}A_{i3}$
+      \item \textbf{Sum reduction} $A_{33} \leftarrow A_{33}^{(1)} + A_{33}^{(2)}$
+      \item Factorize $A_{33}$
+    \end{itemize}
+   \end{exampleblock}
+
+   \begin{alertblock}{\small Parallel inversion of the linear system}
+    For the process with rank=$i$:
+    \begin{itemize}
+      \item Solve $y_{i} \leftarrow A_{ii}^{-1}.b_{i}$
+      \item Compute $b_{3}^{(i)} \leftarrow \frac{1}{2}b_{3} - A_{3i}.y_{i}$
+      \item \textbf{Sum reduction} $b_{3} \leftarrow b_{3}^{(1)} + b_{3}^{(2)}$
+      \item Solve $x_{3} \leftarrow A_{33}^{-1}.b_{3}$
+      \item Compute $x_{i} \leftarrow y_{i} - A_{i3}.x_{3}$
+    \end{itemize}
+   \end{alertblock}
+  \end{multicols}
+\end{frame}
+
+\begin{frame}[fragile]{Generalization for more processes}
+  \scriptsize
+
+  \begin{multicols}{2}
+  \begin{block}{\small Nested bissection}
+    \begin{itemize}
+      \item The main idea : apply recursively the bissection on subdomains
+      \item The factorization can be compute recursively
+      \item The solving part is computed recursively.
+    \end{itemize}
+  \end{block}
+
+  \begin{exampleblock}{\small Properties}
+    \begin{itemize}
+      \item For square or rectangular domains (image per example), \\ideal algorithm to sparsify the factorization;
+      \item Drawback : $A$ can be inversible but a matrix $A_{ii}$ could be\\ not inversible
+    \end{itemize}
+  \end{exampleblock}
+  \end{multicols}
+
+  \begin{figure}[h]
+    \begin{tikzpicture}[scale=1.2]
+      \draw[fill=blue,draw] (0,0) -- (0,-0.25) -- (0.25,-0.25) -- (0.25,0) -- cycle; 
+      \draw[fill=blue,draw] (0.25,-0.25) -- (0.25,-0.5) -- (0.5,-0.5) -- (0.5,-0.25) -- cycle; 
+      \draw[fill=blue,draw] (0.5,-0.5) -- (0.5,-0.6) -- (0.6,-0.6) -- (0.6,-0.5) -- cycle;
+      \draw[fill=blue,draw] (0.5,0) -- (0.5,-0.25) -- (0.6,-0.25) -- (0.6,0.) -- cycle; 
+      \draw[fill=blue,draw] (0.5,-0.25) -- (0.5,-0.5) -- (0.6,-0.5) -- (0.6,-0.25) -- cycle;
+      \draw[fill=blue,draw] (0.,-0.5) -- (0.,-0.6) -- (0.25,-0.6) -- (0.25,-0.5) -- cycle;
+      \draw[fill=blue,draw] (0.25,-0.5) -- (0.25,-0.6) -- (0.5,-0.6) -- (0.5,-0.5) -- cycle;
+      \draw[draw=red] (0.,0.) -- (0,-0.6) -- (0.6,-0.6) -- (0.6,0.) -- cycle;
+
+      \draw[fill=green,draw] (0.6,-0.6) -- (0.6,-0.85) -- (0.85,-0.85) -- (0.85,-0.6) -- cycle; 
+      \draw[fill=green,draw] (0.85,-0.85) -- (0.85,-1.1) -- (1.1,-1.1) -- (1.1,-0.85) -- cycle; 
+      \draw[fill=green,draw] (1.1,-1.1) -- (1.1,-1.2) -- (1.2,-1.2) -- (1.2,-1.1) -- cycle;
+      \draw[fill=green,draw] (1.1,-0.6) -- (1.1,-0.85) -- (1.2,-0.85) -- (1.2,-0.6) -- cycle; 
+      \draw[fill=green,draw] (1.1,-0.85) -- (1.1,-1.1) -- (1.2,-1.1) -- (1.2,-0.85) -- cycle;
+      \draw[fill=green,draw] (0.6,-1.1) -- (0.6,-1.2) -- (0.85,-1.2) -- (0.85,-1.1) -- cycle;
+      \draw[fill=green,draw] (0.85,-1.1) -- (0.85,-1.2) -- (1.1,-1.2) -- (1.1,-1.1) -- cycle;
+      \draw[draw=red] (0.6,-0.6) -- (0.6,-1.2) -- (1.2,-1.2) -- (1.2,-0.6) -- cycle;
+
+      \draw[fill=yellow,draw] (1.2,-1.2) -- (1.2,-1.4) -- (1.4,-1.4) -- (1.4,-1.2) -- cycle;
+      \draw[fill=yellow,draw] (1.2,0.) -- (1.2,-0.6) -- (1.4,-0.6) -- (1.4,0.) -- cycle;
+      \draw[fill=yellow,draw] (1.2,-0.6) -- (1.2,-1.2) -- (1.4,-1.2) -- (1.4,-0.6) -- cycle;
+      \draw[fill=yellow,draw] (0.,-1.2) -- (0.,-1.4) -- (0.6,-1.4) -- (0.6,-1.2) -- cycle;
+      \draw[fill=yellow,draw] (0.6,-1.2) -- (0.6,-1.4) -- (1.2,-1.4) -- (1.2,-1.2) -- cycle;
+      \draw[draw=orange] (1.2,-0.25) -- (1.4,-0.25);
+      \draw[draw=orange] (1.2,-0.5) -- (1.4,-0.5);
+
+      \draw[draw=orange] (1.2,-0.85) -- (1.4,-0.85);
+      \draw[draw=orange] (1.2,-1.1) -- (1.4,-1.1);
+
+      \draw[draw=orange] (0.25,-1.2) -- (0.25,-1.4);
+      \draw[draw=orange] (0.5,-1.2) -- (0.5,-1.4);
+
+      \draw[draw=orange] (0.85,-1.2) -- (0.85,-1.4);
+      \draw[draw=orange] (1.1,-1.2) -- (1.1,-1.4);
+
+      \draw (0,0) -- (0,-1.4) -- (1.4,-1.4) -- (1.4,0) -- cycle;
+
+    \end{tikzpicture}
+  \end{figure}
+\end{frame}
 
 \subsection{Implicit methods}
 
+\begin{frame}[fragile]{Principe of FETI method on two subdomains}
+  \scriptsize
+  \begin{block}{\small Algebraic approach}
+    \begin{itemize}
+      \item Same domain decomposition as Primal Schur decomposition domain :\\
+      $
+      \left(\begin{array}{ccc}
+        A_{11} & 0 & A_{13} \\
+         0 & A_{22} & A_{23} \\
+         A_{31} & A_{32} & A_{33} 
+      \end{array}\right) \left(\begin{array}{c}
+        x_{1} \\ x_{2} \\ x_{3}
+      \end{array}\right) =
+      \left(\begin{array}{c}
+        b_{1} \\ b_{2} \\ b_{3}
+      \end{array}\right)
+      $
+      \item Decompose $A_{33} = A_{33}^{(1)} + A_{33}^{(2)}$ and $b_{3} = b_{3}^{(1)} + b_{3}^{(2)}$ 
+      \item Equivalent linear system :
+      $
+      \left\{
+      \begin{array}{l}
+        \left(\begin{array}{cc}
+          A_{11} & A_{13} \\
+          A_{31} & A_{33}^{(1)}
+        \end{array}\right) \left(
+          \begin{array}{c} x_{1} \\ x_{3} 
+          \end{array}\right) = \left(
+        \begin{array}{c} 
+          b_{1} \\ b_{3}^{(1)} + \left(b_{3}^{(2)} - A_{32}x_{2} -A_{33}^{(2)}x_{3}^{(2)}\right)\end{array}\right)
+      \\
+      \left(\begin{array}{cc}
+        A_{22} & A_{23} \\
+        A_{32} & A_{33}^{(2)}
+      \end{array}\right) \left(
+        \begin{array}{c} x_{2} \\ x_{3} 
+        \end{array}\right) = \left(
+      \begin{array}{c} b_{2} \\ b_{3}^{(2)} + \left(b_{3}^{(1)} - A_{31}x_{1} -A_{33}^{(1)}x_{3}^{(1)}\right)\end{array}\right)
+    \end{array} 
+      \right.
+      $
+      \item $\lambda = b_{3}^{(2)} - A_{32}x_{2} -A_{33}^{(2)}x_{3}^{(2)} = -\left(b_{3}^{(1)} - A_{31}x_{1} -A_{33}^{(1)}x_{3}^{(1)}\right)$
+      \item Equivalent to find $(x_{1},x_{2},x_{3}^{(1)}, x_{3}^{(2)}, \lambda)$ verifying :
+      $
+      \left\{
+        \begin{array}{l}
+          \mathcal{A}_{i}.u_{i} = 
+          \left(\begin{array}{cc}
+            A_{ii} & A_{i3} \\
+            A_{3i} & A_{33}^{(i)}
+          \end{array}\right) \left(
+          \begin{array}{c} x_{i} \\ x^{(i)}_{3} 
+          \end{array}\right) = \left(
+          \begin{array}{c} 
+            b_{i} \\ b_{3}^{(i)} \pm \lambda
+          \end{array}\right) = v_{i} \pm P_{i}^{t}.\lambda, i=1,2;\; P_{i}^{t}\mbox{ prolongement de }\Gamma_{3}\rightarrow \overline{\Omega_{i}}
+          \\
+          x_{3}^{(1)} = x_{3}^{(2)} \Leftrightarrow P_{1}.v_{1} = P_{2}.v_{2}; P_{i}\mbox{ restriction de }\overline{\Omega_{i}}\rightarrow \Gamma_{3}
+        \end{array}
+      \right.
+      $
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Algebraic approach of the FETI method}
+  \scriptsize
+  \begin{block}{\small FETI Method}
+    \begin{itemize}
+      \item Must solve
+      $
+      \left(\begin{array}{ccc}
+        \mathcal{A}_{1} & 0 & P_{1}^{t} \\
+        0 & \mathcal{A}_{2} & -P_{2}^{t} \\
+        P_{1} & -P_{2} & 0
+      \end{array}\right)
+      \left(\begin{array}{c} u_{1} \\ u_{2} \\ \lambda \end{array}\right) =
+      \left(\begin{array}{c} v_{1} \\ v_{2} \\ 0 \end{array}\right)
+      $
+      \item $u_{1}$ and $u_{2}$ could be considered as linear operator with variable $\lambda$ :
+      $u_{1}(\lambda) = \mathcal{A}_{1}^{-1}\left(v_{1} - P_{1}^{t}\lambda\right)$ and
+      $u_{2}(\lambda) = \mathcal{A}_{2}^{-1}\left(v_{2} + P_{2}^{t}\lambda\right)$
+      \item Idea of FETI Method is to solve linear system $P_{1}.u_{1}(\lambda) -P_{2}.u_{2}(\lambda) = 0$ with an iterative method (Conjugate gradient, GMRES, and so.)
+    \end{itemize}
+  \end{block}
+
+  \begin{exampleblock}{\small An iteration of iterative solver with FETI Method with two processors}
+    For a processor, the matrix-vector product in FETI method is :
+    \begin{itemize}
+      \item Compute $f_{i} = v_{i} \mp P_{i}^{t}\lambda$
+      \item Solve $\mathcal{A}_{i}.u_{i} = f_{î}$
+      \item Exchange $P{i}.u_{i} = u_{i}|_{\Gamma_{3}}$ with other processor
+      \item Compute $P_{1}.u_{1} - P_{2}.u_{2}$
+    \end{itemize}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{FETI-2LM (complement)}
+  \scriptsize
+  \begin{block}{FETI-2LM}
+  A most robust variant of FETI method :
+  \begin{itemize}
+    \item We take two lagragian variables instead of one lagragian variable
+    $
+    \left\{
+      \begin{array}{l}
+        \mathcal{A}_{i}.u_{i} = 
+        \left(\begin{array}{cc}
+          A_{ii} & A_{i3} \\
+          A_{3i} & A_{33}^{(i)} + R_{33}^{(i)}
+        \end{array}\right) \left(
+        \begin{array}{c} x_{i} \\ x^{(i)}_{3} 
+        \end{array}\right) = \left(
+        \begin{array}{c} 
+          b_{i} \\ b_{3}^{(i)} + \lambda^{(i)}
+        \end{array}\right) = v_{i} + P_{i}^{t}.\lambda^{(i)}, i=1,2;\; P_{i}^{t}\mbox{ prolongement de }\Gamma_{3}\rightarrow \overline{\Omega_{i}}
+        \\
+        x_{3}^{(1)} = x_{3}^{(2)} \Leftrightarrow P_{1}.v_{1} = P_{2}.v_{2}; P_{i}\mbox{ restriction de }\overline{\Omega_{i}}\rightarrow \Gamma_{3}
+      \end{array}
+    \right.
+    $ with $R_{33}^{(i)}$ to define.
+    \item In global discrete system : $A_{31}.x_{1} + A_{32}.x_{2} + A_{33}.x_{3} = b_{3}$, so 
+    $A_{31}.x_{1} + A_{32}.x_{2} + A_{33}^{(1)}.x_{3}^{(1)} + A_{33}^{(2)}.x_{3}^{(2)} = b_{3}^{(1)} + b_{3}^{(2)}$
+    \item So using the last equation of local discrete problem : 
+    $A_{3i}.x_{i} + A_{33}^{(i)}.x_{3}^{(i)} + R_{33}^{(i)}.x_{3}^{(i)} = b_{3}^{(i)} + \lambda^{(i)}$, we have 
+    $R_{33}^{(1)}x_{3}^{(1)} + R_{33}^{(2)}.x_{3}^{(2)} = \lambda^{(1)} + \lambda^{(2)}$
+    \item Using $x_{3}^{(1)} = x_{3}^{(2)}$, we   obtain :
+    $
+    \left\{
+      \begin{array}{lcl}
+        R_{33}^{(1)}.x_{3}^{(1)} + R_{33}^{(2)}.x_{3}^{(1)} & = & \lambda^{(1)} + \lambda^{(2)} \\
+        R_{33}^{(1)}.x_{3}^{(2)} + R_{33}^{(2)}.x_{3}^{(2)} & = & \lambda^{(1)} + \lambda^{(2)}
+      \end{array}
+    \right.
+    $
+    \item Relation between $\lambda_{i}$ and $x_{3}^{(i)}$ can be explicitly computed :
+      $\left(A_{33}^{(i)} - A_{3i}A_{ii}^{-1}A_{i3} + R_{33}^{(i)}\right)x_{3}^{(i)} = \lambda^{(i)} + b_{3}^{(i)} - A_{3i}A_{ii}^{-1}b_{i}$
+  \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{FETI-2LM...}
+  \scriptsize
+  \begin{block}{FETI-2LM (continued)}
+    \begin{itemize}
+      \item Denote the schur complement $S^{(i)} = A_{33}^{(i)} - A_{3i}.A_{ii}^{-1}.A_{i3}$, and the condensed right-hand side 
+      $c_{3}^{(i)} = b_{3}^{(i)} - A_{3i}.A_{ii}^{-1}.b_{i}$.
+      \item Replace $x_{3}^{(1)}$ and $x_{3}^{(2)}$ by their values as function of $\lambda^{(1)}$ and $\lambda^{(2)}$ :
+      $
+      \left(\begin{array}{cc}
+        I & I - (R_{33}^{(1)}+R_{33}^{(2)})(S^{(2)}+R_{33}^{(2)})^{-1} \\
+        I - (R_{33}^{(1)}+R_{33}^{(2)})(S^{(1)}+R_{33}^{(1)})^{-1} & I
+      \end{array}\right)
+      \left(\begin{array}{c}
+        \lambda^{(1)} \\ \lambda^{(2)}
+      \end{array}\right) = 
+      \left(\begin{array}{c}
+        (S^{(2)}+R_{33}^{(2)})^{-1}c_{3}^{(2)}\\
+        (S^{(1)}+R_{33}^{(1)})^{-1}c_{3}^{(1)}
+      \end{array}\right)
+      $
+      \item "Best choice" for $R_{33}^{(1)}$ and $R_{33}^{(2)}$ : $R_{33}^{(1)} = S^{(2)}$ and $R_{33}^{(2)} = S^{(1)}$ but too expensive to compute
+      \item Try to build a sparse approximation of $S^{(i)}$ for $R_{33}^{(i)}$.
+    \end{itemize}
+  \end{block}
+\end{frame}
 \end{document}
