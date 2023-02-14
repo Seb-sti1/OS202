@@ -225,11 +225,11 @@
 
 \begin{frame}[fragile]{How to split a computing domain ?}
     \scriptsize
-    Let $\Omega$ be a rectanglular area in $\mathbb{R}^{2}$.
+    Let $\Omega$ be a rectangular area in $\mathbb{R}^{2}$.
 
     Some types of splitting :
     \begin{itemize}
-        \item One direction splitting : Easy to care, but not efficiency for communications;
+        \item One direction splitting : Easy to care, but not efficient for communications;
         \item Alternate direction      : Split in two, four or height subdomains the initial domain $\Omega$ and iterate the splitting for subdomains; Harder to care for but more efficient for parallelization and communication;
         \item Adaptive splitting : Anyway, for parallel efficiency, better to split in the direction where we have a minimal number of cells.
     \end{itemize}
@@ -268,18 +268,18 @@
     \end{figure}
 \end{frame}
 
-\begin{frame}[fragile]{Domain decomposition for non structured mesh}
+\begin{frame}[fragile]{Domain decomposition for unstructured mesh}
     \scriptsize
 
     \begin{multicols}{2}
-    \begin{block}{\small Non structured mesh}
+    \begin{block}{\small unstructured mesh}
         \begin{itemize}
             \item Mesh where cells can't be located with (multi-)indices;
-            \item Per example, a triangular mesh
+            \item For example, a triangular mesh
         \end{itemize}
     \end{block}
 
-    \begin{exampleblock}{\small How to split a non structured mesh ?}
+    \begin{exampleblock}{\small How to split an unstructured mesh?}
         \begin{itemize}
             \item Minimize the size of the interfaces between sub-domains;
             \item Optimal minimization is a NP-problem. 
@@ -357,7 +357,7 @@
   \begin{block}{\small Parallelization of the laplacian filter}
     \begin{itemize}
     \item Apply decomposition domain on image domain;
-    \item But need close pixels (right, left, above, bottom);
+    \item But need nearby pixels (right, left, above, bottom);
     \item Add a layer of image pixels in each direction
     \item These pixels are named \textsl{ghost cells};
     \item For sub-domain which contains boundary condition,\\
@@ -398,12 +398,12 @@
     Inverse operation of laplacian filter. From filtered image, rebuild the original image.
 
     \begin{itemize}
-    \item It't an inverse laplacian problem;
-    \item This problem has a unique solution, thanks to the boundary (dirichlet) condition (fixed value 0 out of the image);
+    \item It's an inverse laplacian problem;
+    \item This problem has a unique solution, thanks to the boundary (Dirichlet) condition (fixed value 0 out of the image);
     \item Inpainting is a research domain to achieve real-time decoding for 4K colour images of size $3840\times 2160$ pixels for TV applications using GPGPU (Domain decomposition algorithms for real-time homogeneous diffusion inpainting in 4k, Niklas Kämper and Joachim Weickert, 14 February 2022).
     \item Symmetric definite positive linear system to solve;
     \item The left hand side matrix is the laplacian filter !
-    \item Use some iterative or direct solver (conjugate gradient or sparse LU algorithm per example).
+    \item Use some iterative or direct solver (conjugate gradient or sparse LU algorithm for example).
     \end{itemize}
   \end{block}
 \end{frame}
@@ -431,7 +431,7 @@
   \end{exampleblock}
 
   \begin{itemize}
-  \item Usually, if not smart $x_{0}$ can be chosen, one takes null vector as $x_{0}$;
+  \item Usually, if no smart $x_{0}$ can be chosen, one takes null vector as $x_{0}$;
   \item Very slow to converge $\Rightarrow$ use a local preconditioner;
   \item Same splitting of the image for parallel implementation;
   \item For parallel implementation, processes must exchanges values to update ghost cells value for each iteration of conjugate gradient;
@@ -462,8 +462,8 @@
 \begin{frame}[fragile]{Efficiency of parallel conjugate gradient algorithm}
   \scriptsize
   \begin{block}{Efficiency}
-    Let's an image with resolution $W\times H$ pixels.\\
-    Let's $N = W \times H$ the number of pixels contained in the image. So, per iteration of conjugate gradient :
+    Given an image with resolution $W\times H$ pixels.\\
+    Let $N = W \times H$ be the number of pixels contained in the image. So, per iteration of conjugate gradient :
     \begin{itemize}
     \item About $5\frac{N}{nbp}$ additions and multiplications
     \item About $\displaystyle \frac{2}{\sqrt{\mbox{nbp}}}\left(W + H\right)$ data to send and receive when using alternating
@@ -477,7 +477,7 @@
   \scriptsize
   \begin{block}{\small Presentation of the method}
     \begin{itemize}
-      \item Introduce by Schwarz (1869) to prove existence \& uniqueness of Poisson problem, devising domain
+      \item Introduced by Schwarz (1869) to prove existence \& uniqueness of Poisson problem, dividing domain
             in simpler geometry
       \item With the advent of digital computers, this method acquired a pratical interest as in iterative solver
       \item Parallel computers make it suited to this architecture.
@@ -485,7 +485,7 @@
   \end{block}
 
   \begin{exampleblock}{The algorithm on two subdomains}
-    Let's $\Omega$ a domain in $\mathbb{R}^{n}$ and $\Omega_{1},\Omega_{2}$ two subdomains as $\Omega_{i}\subset \Omega$,
+    Let $\Omega$ be a domain in $\mathbb{R}^{n}$ and $\Omega_{1},\Omega_{2}$ two subdomains as $\Omega_{i}\subset \Omega$,
     $\Omega_{1}\cup \Omega_{2} = \Omega$ and $\Omega_{1}\cap \Omega_{2} \neq \emptyset$. The Schwarz method to solve the
     Poisson problem on $\Omega$ is an iterative method :
     \begin{itemize}
@@ -517,7 +517,7 @@
   \end{exampleblock}
 \end{frame}
 
-\begin{frame}[fragile]{Pratical implementation}
+\begin{frame}[fragile]{Practical implementation}
   \scriptsize
   \begin{multicols}{2}
   \begin{block}{\small Tips}
@@ -527,9 +527,9 @@
       \item Direct solve is faster. Factorize local matrix before\\ Schwarz iterative method;
       \item Stop criterion : stop Schwarz iterations when \\
       $\displaystyle\max_{i=1,2}\left(\|u_{i}^{(n+1)} - u_{i}^{(n)}\|\right) < \varepsilon$
-      \item Using more subdomain is straightforward !
-      \item But more subdomains is used, slower is the convergence.
-      \item Some methods exist to speed-up the convergence of the\\ method (coupling with multigrid method by example)
+      \item Using more subdomains is straightforward !
+      \item But when more subdomains are used, slower is the convergence.
+      \item Some methods exist to speed-up the convergence of the\\ method (coupling with multigrid method for example)
     \end{itemize}
   \end{block}
 
@@ -554,7 +554,7 @@
     \item Some mathematical theorems show than the algorithm converges
     \item Greater is the overlapping between domains, faster is the convergence of the algorithm
     \item But solving local problems is slower
-    \item And most memory is consumed
+    \item And more memory is consumed
   \end{itemize}
 \end{block}  
 
@@ -574,7 +574,7 @@
 
 \begin{frame}[fragile]{Non overlapping methods}
   \scriptsize
-  \begin{block}{\small Non ovelapping domain decomposition}
+  \begin{block}{\small Non overlapping domain decomposition}
     \begin{itemize}
       \item $\left\{\Omega_{i}\right\}_{i=1,\cdots,n}$ is a non overlapping decomposition method of $\Omega$ if :
       \begin{itemize}
@@ -629,16 +629,16 @@
             0    & A_{22} & A_{23} \\
             A_{31} & A_{32} & A_{33}
       \end{array}\right)$
-      \item Ce type de matrice est nommée \textsl{matrice flèche} (par bloc)
+      \item This type of matrix is called an \textsl{arrowhead (block) matrix}
     \end{itemize}
   \end{multicols}
   \end{block}
 \end{frame}
 
-\begin{frame}[fragile]{Résolution d'une matrice flèche par bloc}
+\begin{frame}[fragile]{Resolution of an arrowhead block matrix}
   \scriptsize
   \begin{block}{\small Block factorization}
-    if $A_{11}$ and $A_{22}$ are inversibles, then :
+    if $A_{11}$ and $A_{22}$ are invertible, then :
     \[
       A = \left(\begin{array}{ccc}
         A_{11} & 0 & A_{13} \\
@@ -705,16 +705,16 @@
   \begin{multicols}{2}
   \begin{block}{\small Nested bissection}
     \begin{itemize}
-      \item The main idea : apply recursively the bissection on subdomains
-      \item The factorization can be compute recursively
+      \item The main idea : apply recursively the bissection \\ on subdomains
+      \item The factorization can be computed recursively
       \item The solving part is computed recursively.
     \end{itemize}
   \end{block}
 
   \begin{exampleblock}{\small Properties}
     \begin{itemize}
-      \item For square or rectangular domains (image per example), \\ideal algorithm to sparsify the factorization;
-      \item Drawback : $A$ can be inversible but a matrix $A_{ii}$ could be\\ not inversible
+      \item For square or rectangular domains (image for example), \\ideal algorithm to sparsify the factorization;
+      \item Drawback : $A$ can be invertible but a matrix $A_{ii}$ could be\\ not invertible
     \end{itemize}
   \end{exampleblock}
   \end{multicols}
@@ -775,10 +775,10 @@
          0 & A_{22} & A_{23} \\
          A_{31} & A_{32} & A_{33} 
       \end{array}\right) \left(\begin{array}{c}
-        x_{1} \\ x_{2} \\ x_{3}
+        x_{1} \\ x_{2} \\ x_{3}
       \end{array}\right) =
       \left(\begin{array}{c}
-        b_{1} \\ b_{2} \\ b_{3}
+        b_{1} \\ b_{2} \\ b_{3}
       \end{array}\right)
       $
       \item Decompose $A_{33} = A_{33}^{(1)} + A_{33}^{(2)}$ and $b_{3} = b_{3}^{(1)} + b_{3}^{(2)}$ 
@@ -864,7 +864,7 @@
 \begin{frame}[fragile]{FETI-2LM (complement)}
   \scriptsize
   \begin{block}{FETI-2LM}
-  A most robust variant of FETI method :
+  A more robust variant of FETI method :
   \begin{itemize}
     \item We take two lagragian variables instead of one lagragian variable
     $
