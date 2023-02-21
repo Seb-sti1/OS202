@@ -23,6 +23,7 @@ On itère ensuite pour étudier la façon dont évolue la population des cellule
 """
 import tkinter as tk
 import numpy   as np
+from mpi4py import MPI
 
 class Grille:
     """
@@ -124,6 +125,14 @@ class App:
         else:
             return self.grid.col_life
 
+    def update_grid_from_diff(self, diff):
+        nx = grid.dimensions[1]
+        ny = grid.dimensions[0]
+
+        for ind in diff:
+            i, j = ind // nx, ind % nx
+            grid.cells[i, j] = not grid.cells[i, j]
+
     def draw(self, diff):
         if len(self.canvas_cells) == 0:
             # Création la première fois des cellules en tant qu'entité graphique :
@@ -136,9 +145,16 @@ class App:
         self.root.update_idletasks()
         self.root.update()
 
+
+
+def pprint(*args, **kwargs):
+    print("[%03d]" % rank, *args, **kwargs)
+
+
 if __name__ == '__main__':
     import time
     import sys
+
     dico_patterns = { # Dimension et pattern dans un tuple
         'blinker' : ((5,5),[(2,1),(2,2),(2,3)]),
         'toad'    : ((6,6),[(2,2),(2,3),(2,4),(3,3),(3,4),(3,5)]),
@@ -155,29 +171,46 @@ if __name__ == '__main__':
         "u" : ((200,200), [(101,101),(102,102),(103,102),(103,101),(104,103),(105,103),(105,102),(105,101),(105,105),(103,105),(102,105),(101,105),(101,104)]),
         "flat" : ((200,400), [(80,200),(81,200),(82,200),(83,200),(84,200),(85,200),(86,200),(87,200), (89,200),(90,200),(91,200),(92,200),(93,200),(97,200),(98,200),(99,200),(106,200),(107,200),(108,200),(109,200),(110,200),(111,200),(112,200),(114,200),(115,200),(116,200),(117,200),(118,200)])
     }
+    
     choice = 'glider'
+    
     if len(sys.argv) > 1 :
         choice = sys.argv[1]
     resx = 800
     resy = 800
+    
     if len(sys.argv) > 3 :
         resx = int(sys.argv[2])
         resy = int(sys.argv[3])
+    
     print(f"Pattern initial choisi : {choice}")
     print(f"resolution ecran : {resx,resy}")
+    
     try:
         init_pattern = dico_patterns[choice]
     except KeyError:
         print("No such pattern. Available ones are:", dico_patterns.keys())
         exit(1)
+
     grid = Grille(*init_pattern)
     appli = App((resx, resy), grid)
 
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
+
     while(True):
         #time.sleep(0.5) # A régler ou commenter pour vitesse maxi
-        t1 = time.time()
-        diff = grid.compute_next_iteration()
-        t2 = time.time()
-        appli.draw(diff)
-        t3 = time.time()
-        print(f"Temps calcul prochaine generation : {t2-t1:2.2e} secondes, temps affichage : {t3-t2:2.2e} secondes\r", end='');
+        
+        if rank != 0:
+            diff = grid.compute_next_iteration()
+            comm.send(diff, dest=0)
+
+        if rank == 0:
+            diff = comm.recv(source=1)
+            appli.update_grid_from_diff(diff)
+            appli.draw(diff)
+        
+        
+        #print(f"Temps calcul prochaine generation : {t2-t1:2.2e} secondes, temps affichage : {t3-t2:2.2e} secondes\r", end='');
