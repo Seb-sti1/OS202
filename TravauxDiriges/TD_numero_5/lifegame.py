@@ -24,7 +24,7 @@ On itère ensuite pour étudier la façon dont évolue la population des cellule
 import tkinter as tk
 import numpy   as np
 
-class grille:
+class Grille:
     """
     Grille torique décrivant l'automate cellulaire.
     En entrée lors de la création de la grille :
@@ -34,9 +34,9 @@ class grille:
         - color_dead est la couleur dans laquelle on affiche une cellule morte
     Si aucun pattern n'est donné, on tire au hasard quels sont les cellules vivantes et les cellules mortes
     Exemple :
-       grid = grille( (10,10), init_pattern=[(2,2),(0,2),(4,2),(2,0),(2,4)], color_life="red", color_dead="black")
+       grid = Grille( (10,10), init_pattern=[(2,2),(0,2),(4,2),(2,0),(2,4)], color_life="red", color_dead="black")
     """
-    def __init__( self, dim, init_pattern = None, color_life = "black", color_dead = "white" ):
+    def __init__(self, dim, init_pattern=None, color_life="black", color_dead="white"):
         import random
         self.dimensions = dim
         if init_pattern is not None:
@@ -45,7 +45,7 @@ class grille:
             indices_j = [v[1] for v in init_pattern]
             self.cells[indices_i,indices_j] = 1
         else:
-            self.cells = np.random.randint(2, size=dim, dtype=uint8)
+            self.cells = np.random.randint(2, size=dim, dtype=np.uint8)
         self.col_life = color_life
         self.col_dead = color_dead
 
@@ -83,6 +83,8 @@ class grille:
                     next_cells[i,j] = 0         # Morte, elle reste morte.
         self.cells = next_cells
         return diff_cells
+
+
 class App:
     """
     Cette classe décrit la fenêtre affichant la grille à l'écran
@@ -95,7 +97,7 @@ class App:
         self.size_x = geometry[1]//grid.dimensions[1]
         self.size_y = geometry[0]//grid.dimensions[0]
         if self.size_x > 4 and self.size_y > 4 :
-            self.draw_color='black'
+            self.draw_color='lightgrey'
         else:
             self.draw_color=""
         # Ajustement de la taille de la fenêtre pour bien fitter la dimension de la grille
@@ -104,18 +106,19 @@ class App:
         # Création de la fenêtre à l'aide de tkinter
         self.root = tk.Tk()
         # Création de l'objet d'affichage
-        self.canvas = tk.Canvas(self.root, height = self.height, width = self.width)
+        self.canvas = tk.Canvas(self.root, height=self.height, width=self.width)
         self.canvas.pack()
         #
         self.canvas_cells = []
 
-    def compute_rectange(self, i : int, j : int):
+    def compute_rectange(self, i: int, j: int):
         """
         Calcul la géométrie du rectangle correspondant à la cellule (i,j)
         """
-        return (self.size_x*j,self.height - self.size_y*i - 1, self.size_x*j+self.size_x-1, self.height - self.size_y*(i+1) )
+        return (self.size_x*j, self.height - self.size_y*i - 1,
+                self.size_x*j+self.size_x-1, self.height - self.size_y*(i+1) )
 
-    def compute_color(self,i : int,j : int):
+    def compute_color(self, i: int, j: int):
         if self.grid.cells[i,j] == 0:
             return self.grid.col_dead
         else:
@@ -124,11 +127,12 @@ class App:
     def draw(self, diff):
         if len(self.canvas_cells) == 0:
             # Création la première fois des cellules en tant qu'entité graphique :
-            self.canvas_cells = [self.canvas.create_rectangle(*self.compute_rectange(i,j), fill=self.compute_color(i,j),outline=self.draw_color) for i in range(self.grid.dimensions[0]) for j in range(self.grid.dimensions[1])]
+            self.canvas_cells = [ self.canvas.create_rectangle(*self.compute_rectange(i,j), fill=self.compute_color(i,j),
+                                       outline=self.draw_color) for i in range(self.grid.dimensions[0]) for j in range(self.grid.dimensions[1])]
         else:
             nx = grid.dimensions[1]
             ny = grid.dimensions[0]
-            [self.canvas.itemconfig(self.canvas_cells[ind], fill=self.compute_color(ind//nx,ind%nx),outline=self.draw_color) for ind in diff]
+            [self.canvas.itemconfig(self.canvas_cells[ind], fill=self.compute_color(ind//nx, ind%nx), outline=self.draw_color) for ind in diff]
         self.root.update_idletasks()
         self.root.update()
 
@@ -161,9 +165,14 @@ if __name__ == '__main__':
         resy = int(sys.argv[3])
     print(f"Pattern initial choisi : {choice}")
     print(f"resolution ecran : {resx,resy}")
-    init_pattern = dico_patterns[choice]
-    grid = grille(*init_pattern)
-    appli = App((resx,resy),grid)
+    try:
+        init_pattern = dico_patterns[choice]
+    except KeyError:
+        print("No such pattern. Available ones are:", dico_patterns.keys())
+        exit(1)
+    grid = Grille(*init_pattern)
+    appli = App((resx, resy), grid)
+
     while(True):
         #time.sleep(0.5) # A régler ou commenter pour vitesse maxi
         t1 = time.time()
