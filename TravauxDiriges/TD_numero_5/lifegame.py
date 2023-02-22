@@ -25,7 +25,6 @@ import tkinter as tk
 import numpy as np
 from mpi4py import MPI
 
-
 class Grille:
     """
     Grille torique décrivant l'automate cellulaire.
@@ -55,22 +54,20 @@ class Grille:
 
         self.offset = offset
         if offset is not None:
-            if offset[0] == -1:
-                self.cells = np.concatenate((np.expand_dims(self.cells[:, -1], axis=1),
-                                             self.cells[:, offset[0] + 1: offset[1] + 1]), axis=1)
-            elif offset[1] == dim[1]:
-                self.cells = np.concatenate((self.cells[:, offset[0]: offset[1]],
-                                             np.expand_dims(self.cells[:, 0], axis=1)), axis=1)
-            else:
-                self.cells = self.cells[:, offset[0]: offset[1] + 1]
+            self.cells = np.concatenate((np.expand_dims(self.cells[:, self.offset[0] - 1], axis=1),
+                                         self.cells[:, offset[0]: offset[1] + 1],
+                                         np.expand_dims(self.cells[:, (self.offset[1] + 1) % self.global_dimensions[1]],
+                                                        axis=1)), axis=1)
 
         self.dimensions = self.cells.shape
 
     def local_pos_to_global_idx(self, i, j):
-        return (i + self.offset[0]) * self.global_dimensions[1] + j
+        return (i * self.global_dimensions[1] + j + self.offset[0] - 1) % (self.global_dimensions[0]
+                                                                           * self.global_dimensions[1])
 
     def global_idx_to_local_pos(self, idx):
-        return idx // self.global_dimensions[1] - self.offset[0], idx % self.global_dimensions[1]
+        return idx // self.global_dimensions[1], (idx % self.global_dimensions[1] - self.offset[0] + 1)\
+                                                 % self.global_dimensions[1]
 
     def compute_next_iteration(self):
         """
@@ -81,12 +78,18 @@ class Grille:
         #             à gauche de la grille !
         ny = self.dimensions[0]
         nx = self.dimensions[1]
-        next_cells = np.empty(self.dimensions, dtype=np.uint8)
+        next_cells = np.zeros(self.dimensions, dtype=np.uint8)
+        next_cells[:, 0] = self.cells[:, 0]
+        next_cells[:, -1] = self.cells[:, -1]
+
         diff_cells = []
-        for i in range(ny):
+
+        j_range = range(0, nx) if self.offset is None else range(1, nx - 1)
+
+        for i in range(0, ny):
             i_above = (i + ny - 1) % ny
             i_below = (i + 1) % ny
-            for j in range(nx):
+            for j in j_range:
                 j_left = (j - 1 + nx) % nx
                 j_right = (j + 1) % nx
                 voisins_i = [i_above, i_above, i_above, i, i, i_below, i_below, i_below]
@@ -104,18 +107,19 @@ class Grille:
                     diff_cells.append(self.local_pos_to_global_idx(i, j))
                 else:
                     next_cells[i, j] = 0  # Morte, elle reste morte.
+
         self.cells = next_cells
         return diff_cells
 
     def update_grid_from_diff(self, diff):
-        nx = self.dimensions[1]
         ny = self.dimensions[0]
+        nx = self.dimensions[1]
 
         for ind in diff:
             i, j = self.global_idx_to_local_pos(ind)
 
-            if 0 <= i <= nx and 0 <= j <= ny:
-                self.cells[i, j] = not self.cells[i, j]
+            if 0 <= i < ny and 0 <= j < nx:
+                self.cells[i, j] = 0 if self.cells[i, j] == 1 else 1
 
 
 class App:
@@ -164,7 +168,8 @@ class App:
 
         for ind in diff:
             i, j = ind // nx, ind % nx
-            grid.cells[i, j] = not grid.cells[i, j]
+
+            grid.cells[i, j] = 0 if grid.cells[i, j] == 1 else 1
 
     def draw(self, diff):
         if len(self.canvas_cells) == 0:
@@ -193,7 +198,7 @@ def fusion(l, exclude=None):
 
     for x in l:
         for y in x:
-            if y not in exclude:
+            if y not in exclude and y not in result:
                 result.append(y)
 
     return result
@@ -226,7 +231,7 @@ if __name__ == '__main__':
                     (6, 14), (10, 2), (11, 2), (12, 2), (10, 7), (11, 7), (12, 7), (10, 9), (11, 9), (12, 9), (10, 14),
                     (11, 14), (12, 14)]),
         "floraison": (
-        (40, 40), [(19, 18), (19, 19), (19, 20), (20, 17), (20, 19), (20, 21), (21, 18), (21, 19), (21, 20)]),
+            (40, 40), [(19, 18), (19, 19), (19, 20), (20, 17), (20, 19), (20, 21), (21, 18), (21, 19), (21, 20)]),
         "block_switch_engine": ((400, 400),
                                 [(201, 202), (201, 203), (202, 202), (202, 203), (211, 203), (212, 204), (212, 202),
                                  (214, 204), (214, 201), (215, 201), (215, 202), (216, 201)]),
@@ -240,7 +245,7 @@ if __name__ == '__main__':
                   (117, 200), (118, 200)])
     }
 
-    choice = 'glider'
+    choice = 'floraison'
 
     if len(sys.argv) > 1:
         choice = sys.argv[1]
@@ -277,16 +282,16 @@ if __name__ == '__main__':
     else:
         ny = init_pattern[0][1]
 
-        top_line = -1 if rank_calc == 0 else rank_calc * ny // size_calc
-        bottom_line = (rank_calc + 1) * ny // size_calc
+        top_line = rank_calc * ny // size_calc
+        bottom_line = ny - 1 if rank_calc == size_calc - 1 else (rank_calc + 1) * ny // size_calc - 1
 
         grid = Grille(*init_pattern, (top_line, bottom_line))
 
     time.sleep(1)
 
     t = time.time()
+
     while True:
-        time.sleep(0.5)
 
         diff = []
         if color == 1:
@@ -298,7 +303,6 @@ if __name__ == '__main__':
 
         diff_total = comm.allgather(diff)
         diff = fusion(diff_total, diff)
-        pprint(diff)
 
         if color == 0:
             t3 = time.time()
@@ -309,4 +313,4 @@ if __name__ == '__main__':
             pprint(f"[{t3 - t}] Took {t4 - t3} to draw")
         else:
             grid.update_grid_from_diff(diff)
-
+            comm_calc.barrier()
