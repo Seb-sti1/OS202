@@ -299,7 +299,7 @@ if __name__ == '__main__':
             diff = grid.compute_next_iteration()
             t2 = time.time()
 
-            pprint(f"[{t1 - t}] Took {t2 - t1} to compute")
+            #pprint(f"[{t1 - t}] Took {t2 - t1} to compute")
 
         diff_total = comm.allgather(diff)
         diff = fusion(diff_total, diff)
@@ -310,7 +310,7 @@ if __name__ == '__main__':
             appli.draw(diff)
             t4 = time.time()
 
-            pprint(f"[{t3 - t}] Took {t4 - t3} to draw")
+            #pprint(f"[{t3 - t}] Took {t4 - t3} to draw")
         else:
             grid.update_grid_from_diff(diff)
             comm_calc.barrier()
